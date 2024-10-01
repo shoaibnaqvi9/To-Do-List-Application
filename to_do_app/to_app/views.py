@@ -1,14 +1,57 @@
 from django.shortcuts import render,redirect
 import re
 from django.contrib import messages
+from django.shortcuts import get_object_or_404
 from .models import User, To_do_List
 from django.db import IntegrityError
 
 def index(request):
-    if 'id' in request.session:
-        name= request.session.get('name')
-        return render(request, 'index.html', {'name': name})
+    if request.method == 'POST':
+        todo = request.POST.get('todo')
+        status = request.POST.get('status')
+        user = User.objects.get(id=request.session['id'])
+        todo_list = To_do_List(todo=todo, status=status, user=user)
+        todo_list.save()
+    todo_list = To_do_List.objects.filter(user=request.session['id'])
+    context = {
+        'session_name': request.session.get('username', 'Guest'),
+        'session_email': request.session.get('email', ''),
+        'todo_list': todo_list
+    }
+    return render(request, 'index.html', context)
 
+def about(request):
+    context = {
+        'session_name': request.session.get('username', 'Guest'),
+        'session_email': request.session.get('email', ''),
+    }
+    return render(request, 'about.html',context)
+
+def add_task(request):
+    if request.method == 'POST':
+        todo = request.POST.get('todo')
+        status = request.POST.get('status')
+        user = User.objects.get(id=request.session['id'])
+        todo_list = To_do_List(todo=todo, status=status, user=user)
+        todo_list.save()
+    return redirect('index')
+
+def delete_task(request, id):
+    todo_list = get_object_or_404(To_do_List, id=id)
+    todo_list.delete()
+    return redirect('index')
+
+def update_task(request, id):
+    todo_list = To_do_List.objects.get(id=id)
+    if request.method == 'POST':
+        todo_list.todo = request.POST.get('todo')
+        todo_list.status = request.POST.get('status')
+        todo_list.save()
+        return redirect('index')
+    context = {
+        'task': todo_list
+    }
+    return redirect(request,'home',context)
 def signup(request):
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -38,17 +81,16 @@ def login(request):
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
-        user = User.objects.filter(email=email)
+        user = User.objects.filter(email=email, password=password)
         if user is not None:
-            user = user[0]
+            user = user.first()
             if user.password == password:
                 request.session['id'] = user.id
                 request.session['username'] = user.name
                 request.session['email'] = user.email
                 return redirect('index')
             else:
-                msg = 'Invalid Credentials'
-                messages.error(request, msg)
+                messages.error(request, 'Invalid Credentials')
         else:
             messages.error(request, 'User does not exist')
     return render(request, 'login_here.html')
@@ -56,3 +98,4 @@ def login(request):
 def logout(request):
     request.session.clear()
     return redirect('login_here')
+
