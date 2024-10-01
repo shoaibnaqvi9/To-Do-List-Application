@@ -12,11 +12,20 @@ def index(request):
         user = User.objects.get(id=request.session['id'])
         todo_list = To_do_List(todo=todo, status=status, user=user)
         todo_list.save()
-    todo_list = To_do_List.objects.filter(user=request.session['id'])
+    filter_option = request.GET.get('filter', 'all')  # Default to 'all'
+    user = User.objects.get(id=request.session['id'])
+    
+    if filter_option == 'completed':
+        todo_list = To_do_List.objects.filter(user=user, status='Completed')
+    elif filter_option == 'active':
+        todo_list = To_do_List.objects.filter(user=user, status='Active')
+    else:
+        todo_list = To_do_List.objects.filter(user=user)
     context = {
         'session_name': request.session.get('username', 'Guest'),
         'session_email': request.session.get('email', ''),
-        'todo_list': todo_list
+        'todo_list': todo_list,
+        'filter_option': filter_option
     }
     return render(request, 'index.html', context)
 
